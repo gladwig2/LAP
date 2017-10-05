@@ -31,7 +31,7 @@ VALGRIND_ON = $(DEBUG_ON) --gdb "valgrind -v --leak-check=yes"
 
 ######################################################################
 
-VERILATOR_FLAGS = --cc -f input.vc top.v
+VERILATOR_FLAGS = --cc -f input.vc top.v pkgs.v 
 VERILATOR_FLAGS += --trace
 
 rtl:
