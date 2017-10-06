@@ -34,7 +34,7 @@ int main(int argc, char **argv, char **env) {
     tfp->open ("vlt_dump.vcd");	// Open the dump file
 #endif
 
-    top->reset_l = 1;		// Set some inputs
+    top->reset = 0;		// Set some inputs
     top->fastclk = 0;
     top->clk = 0;
     top->passed = 0;
@@ -48,9 +48,9 @@ int main(int argc, char **argv, char **env) {
 	    top->clk = 0;
 	}
 	if (main_time > 10) {
-	    top->reset_l = 1;	// Deassert reset
+	    top->reset = 0;	// Deassert reset
 	} else if (main_time > 1) {
-	    top->reset_l = 0;	// Assert reset
+	    top->reset = 1;	// Assert reset
 	}
 
 	top->eval();		// Evaluate model
@@ -59,9 +59,9 @@ int main(int argc, char **argv, char **env) {
 #endif
 
 	// Read outputs
-	VL_PRINTF ("[%" VL_PRI64 "d] %x %x %x %x %x_%08x_%08x\n",
-		   main_time, top->clk, top->reset_l, top->passed,
-		   top->out_small, top->out_wide[2], top->out_wide[1], top->out_wide[0]);
+	/*	VL_PRINTF ("[%" VL_PRI64 "d] %x %x %x %x %x_%08x_%08x\n",
+		   main_time, top->clk, top->reset, top->passed,
+		   top->out_small, top->out_wide[2], top->out_wide[1], top->out_wide[0]); */
 
 	top->fastclk = !top->fastclk;
 	main_time++;		// Time passes...

@@ -7,26 +7,28 @@
 
 module top (/*AUTOARG*/
    // Outputs
-   passed, out_small, out_quad, out_wide,
+//   passed, out_small, out_quad, out_wide,
+   passed,
    // Inputs
-   clk, fastclk, reset_l, in_small, in_quad, in_wide
+   clk, fastclk, reset
+//   clk, fastclk, reset, in_small, in_quad, in_wide
    );
 
    output passed;
    input  clk;
    input  fastclk;
-   input  reset_l;
+   input  reset;
 
-   output [1:0] out_small;
-   output [39:0] out_quad;
-   output [69:0] out_wide;
-   input [1:0] 	 in_small;
-   input [39:0]  in_quad;
-   input [69:0]  in_wide;
+//   output [1:0] out_small;
+//   output [39:0] out_quad;
+//   output [69:0] out_wide;
+//   input [1:0] 	 in_small;
+//   input [39:0]  in_quad;
+//   input [69:0]  in_wide;
 
-   wire [1:0] 	 out_small = in_small | {2{reset_l}};
-   wire [39:0] 	 out_quad = in_quad | {40{reset_l}};
-   wire [69:0] 	 out_wide = in_wide | {70{reset_l}};
+//   wire [1:0] 	 out_small = in_small | {2{reset}};
+//   wire [39:0] 	 out_quad = in_quad | {40{reset}};
+//   wire [69:0] 	 out_wide = in_wide | {70{reset}};
 
    initial begin
       $write("Hello World!\n");
@@ -34,13 +36,12 @@ module top (/*AUTOARG*/
 
    // Example sub module
    core core (/*AUTOINST*/
-	// Outputs
-	.passed				(passed),
-	// Inputs
-	.clk				(clk),
-	.fastclk			(fastclk),
-	.reset_l			(reset_l));
-
+	      // Outputs
+	      .passed			(passed),
+	      // Inputs
+	      .clk			(fastclk),
+	      .reset			(reset));
+   
    
 
 endmodule
