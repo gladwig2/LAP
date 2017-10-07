@@ -14,6 +14,7 @@
 *.tex
 *.pdf
 *.vcd
+*.dino
 TAGS
 autom4te.cache
 config.cache
