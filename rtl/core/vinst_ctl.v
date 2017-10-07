@@ -27,6 +27,7 @@ module vinst_ctl (input clk, reset,
    end
    
    always_ff @(posedge clk) begin
+//      $display("inst_r.aadr, badr %x %x",inst_r.aadr, inst_r.badr);
       if (reset) begin
 	 vcnt <= 0;
 	 inst_r.opcode <= 0; // fix, nop
@@ -44,21 +45,21 @@ module vinst_ctl (input clk, reset,
       end
    end // always_ff @
 
-   always_ff @(posedge clk) begin 
-      abus.rd <= (load_r | abus.rd) & (!reset & !done[0]);
-      bbus.rd <= (load_r | bbus.rd) & (!reset & !done[0]);
+   always_ff @(posedge clk) begin
+      abus.rd <= (load_r | abus.rd & !done[0]) & !reset;
+      bbus.rd <= (load_r | bbus.rd & !done[0]) & !reset;
       if (load_r) begin
-	 abus.aadr <= inst_r.aadr[LAP_AOP_ADR_MSB:LAP_AOP_ADR_LSB];
-	 bbus.badr <= inst_r.badr[LAP_BOP_ADR_MSB:LAP_BOP_ADR_LSB];
-	 cbus.cadr <= inst_r.cadr[LAP_COP_ADR_MSB:LAP_COP_ADR_LSB]; // fix
+	 abus.adr <= inst_r.aadr[LAP_AOP_ADR_MSB:LAP_AOP_ADR_LSB];
+	 bbus.adr <= inst_r.badr[LAP_BOP_ADR_MSB:LAP_BOP_ADR_LSB];
+	 cbus.adr <= inst_r.cadr[LAP_COP_ADR_MSB:LAP_COP_ADR_LSB]; // fix
       end else if (!done[0]) begin
-	 abus.aadr <= abus.aadr + 1;
-	 bbus.badr <= bbus.badr + 1;
-	 cbus.cadr <= cbus.cadr + 1; // fix
+	 abus.adr <= abus.adr + 1;
+	 bbus.adr <= bbus.adr + 1;
+	 cbus.adr <= cbus.adr + 1; // fix
       end else begin
-	 abus.aadr <= abus.aadr;
-	 bbus.badr <= bbus.badr;
-	 cbus.cadr <= cbus.cadr; // fix
+	 abus.adr <= abus.adr;
+	 bbus.adr <= bbus.adr;
+	 cbus.adr <= cbus.adr; // fix
       end
    end
 

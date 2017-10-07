@@ -4,26 +4,40 @@ module core (/*AUTOARG*/
    // Outputs
    passed,
    // Inputs
-   clk,reset
+   clk,mclk,reset
    );
 
    input clk;
+   input mclk;
    input reset;
    output passed;
 
-   parameter Xmax = 3;
-   parameter Ymax = 3;
-
    import proj_pkgs::*;
+
+   parameter Xmax = LAP_N;
+   parameter Ymax = LAP_N;
    
    dbus_t dx[Xmax][Ymax];
    dbus_t dy[Xmax][Ymax];
-   assign dx[0][0] = '{1,1};
-   assign dy[0][0] = '{2,2};
 
    genvar x,y;
    generate
       for (x = 0; x < Xmax; x = x+1) begin : pex
+	 sram #(.MEM_INIT_FILE("Aop.txt"),.ADDR_WIDTH(LAP_AOP_CACHE_ADR_BITS), 
+		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
+	 aram(.rclk(clk), .radr(abus[x].adr), .ren(abus[x].rd), .rdata(dx[0][x].data),
+	      .wclk(mclk), .wadr(0), .wen(0), .wdata(0));
+	 
+	 sram #(.MEM_INIT_FILE("Bop.txt"),.ADDR_WIDTH(LAP_BOP_CACHE_ADR_BITS), 
+		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
+	 bram(.rclk(clk), .radr(bbus[x].adr), .ren(bbus[x].rd), .rdata(dy[x][0].data),
+	      .wclk(mclk), .wadr(0), .wen(0), .wdata(0));
+
+         sram #(.MEM_INIT_FILE("Cop.txt"),.ADDR_WIDTH(LAP_COP_CACHE_ADR_BITS), 
+		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
+	 cram(.rclk(clk), .radr(0), .ren(0), .rdata(),
+	      .wclk(clk), .wadr(cbus[x].adr), .wen(cbus[x].wr), .wdata(dy[x][Ymax].data));
+
 	 for (y = 0; y < Ymax; y = y+1) begin : pey
 	    pe pe(.clk(clk), 
 		  .up(dy[x][y]), 
@@ -39,7 +53,7 @@ module core (/*AUTOARG*/
    cbus_t cbus[LAP_N];
 
    sa_inst_t finst;
-   assign finst = '{ 0,0,32'h5555,32'h6666,16'h7777,32'h8888,LAP_N-1};
+   assign finst = '{ 0,0,32'hAAAA,32'hBBBB,16'hCCCC,32'hDDDD,LAP_N-1};
    logic ifavail, ifrd;
    assign ifavail = 1'b1;
    
@@ -49,11 +63,16 @@ module core (/*AUTOARG*/
 		  .abus(abus[0]), .bbus(bbus[0]), .cbus(cbus[0]));
 
    always_ff @(posedge clk) begin
-      abus[LAP_N-1:1] <= abus[LAP_N-2:0];
-      bbus[LAP_N-1:1] <= bbus[LAP_N-2:0];
-      cbus[LAP_N-1:1] <= cbus[LAP_N-2:0]; // fix
+      for (int i=0; i<LAP_N-1; i++) begin
+	 abus[i+1] <= abus[i]; // stage busses
+	 bbus[i+1] <= bbus[i]; // 
+	 cbus[i+1] <= cbus[i]; // FIX
+      end
+//      abus[LAP_N-1:1] <= abus[LAP_N-2:0];
+//      bbus[LAP_N-1:1] <= bbus[LAP_N-2:0];
+//      cbus[LAP_N-1:1] <= cbus[LAP_N-2:0]; // fix
    end
-      
+     
    
    reg [31:0] count_c;
    reg [31:0] count_f;

@@ -49,7 +49,7 @@ int main(int argc, char **argv, char **env) {
 	}
 	if (main_time > 10) {
 	    top->reset = 0;	// Deassert reset
-	} else if (main_time > 1) {
+	} else if (main_time > 2) {
 	    top->reset = 1;	// Assert reset
 	}
 

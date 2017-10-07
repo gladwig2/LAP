@@ -40,6 +40,7 @@ module top (/*AUTOARG*/
 	      .passed			(passed),
 	      // Inputs
 	      .clk			(fastclk),
+	      .mclk			(clk),
 	      .reset			(reset));
    
    
