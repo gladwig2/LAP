@@ -4,9 +4,8 @@ module core (/*AUTOARG*/
    // Outputs
    passed,
    // Inputs
-   clk,mclk,reset
+   clk, mclk, reset
    );
-
    input clk;
    input mclk;
    input reset;
@@ -14,66 +13,91 @@ module core (/*AUTOARG*/
 
    import proj_pkgs::*;
 
-   parameter Xmax = LAP_N;
-   parameter Ymax = LAP_N;
-   
-   dbus_t dx[Xmax][Ymax];
-   dbus_t dy[Xmax][Ymax];
+   dbus_t    rb[LAP_N][LAP_N+1];   // row bus col N+1 not used
+   dbus_t    cb[LAP_N+1][LAP_N];   // column bus
+   sbus_t    sb[LAP_N];            // sum bus
+   sbus_t    pb[LAP_N];            // parital bus
 
-   genvar x,y;
+   rowaddr_t ra[LAP_N];            // array busses
+   coladdr_t ca[LAP_N];   
+   paraddr_t par[LAP_N];
+   pawaddr_t paw[LAP_N];
+
+   genvar x;
    generate
-      for (x = 0; x < Xmax; x = x+1) begin : pex
-	 sram #(.MEM_INIT_FILE("Aop.txt"),.ADDR_WIDTH(LAP_AOP_CACHE_ADR_BITS), 
+      for (x = 0; x < LAP_N; x = x+1) begin : gr // generate rams
+	 sram #(.MEM_INIT_FILE("col.txt"),.ADDR_WIDTH(LAP_COL_CACHE_ADR_BITS), 
 		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
-	 aram(.rclk(clk), .radr(abus[x].adr), .ren(abus[x].rd), .rdata(dx[0][x].data),
+	 cc(.rclk(clk), .radr(ca[x].adr), .ren(ca[x].rd), .rdata(cb[0][x].data),
 	      .wclk(mclk), .wadr(0), .wen(0), .wdata(0));
 	 
-	 sram #(.MEM_INIT_FILE("Bop.txt"),.ADDR_WIDTH(LAP_BOP_CACHE_ADR_BITS), 
+	 sram #(.MEM_INIT_FILE("row.txt"),.ADDR_WIDTH(LAP_ROW_CACHE_ADR_BITS), 
 		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
-	 bram(.rclk(clk), .radr(bbus[x].adr), .ren(bbus[x].rd), .rdata(dy[x][0].data),
+	 rc(.rclk(clk), .radr(ra[x].adr), .ren(ra[x].rd), .rdata(rb[x][0].data),
 	      .wclk(mclk), .wadr(0), .wen(0), .wdata(0));
 
-         sram #(.MEM_INIT_FILE("Cop.txt"),.ADDR_WIDTH(LAP_COP_CACHE_ADR_BITS), 
-		.DATA_WIDTH(LAP_SA_ALUWIDTH)) 
-	 cram(.rclk(clk), .radr(0), .ren(0), .rdata(),
-	      .wclk(clk), .wadr(cbus[x].adr), .wen(cbus[x].wr), .wdata(dy[x][Ymax].data));
+         sram #(.MEM_INIT_FILE("part.txt"),.ADDR_WIDTH(LAP_PAR_CACHE_ADR_BITS), 
+		.DATA_WIDTH(LAP_SA_ACCWIDTH)) 
+	 pc(.rclk(clk), .radr(par[x].adr), .ren(par[x].rd), .rdata(pb[x].data),
+	    .wclk(clk), .wadr(paw[x].adr), .wen(paw[x].wr), .wdata(sb[x].data));
+	 // FIX when adding partial
+      end // block: gr
+   endgenerate
 
-	 for (y = 0; y < Ymax; y = y+1) begin : pey
-	    pe pe(.clk(clk), 
-		  .up(dy[x][y]), 
-		  .down(dy[x][y+1]), 
-		  .left(dx[x][y]), 
-		  .right(dx[x+1][y]));
+   assign cb[0][0].opcd = saop; // note, opcd on cb[0][0] not otherwise driven
+
+   genvar r,c;
+   generate
+      for (r = 0; r < LAP_N; r = r+1) begin : rpe 
+	 for (c = 0; c < LAP_N; c = c+1) begin : cpe
+	    pe #(r,c) pe(.clk(clk),  
+			 .up(cb[r][c]),   .down(cb[r+1][c]), 
+			 .left(rb[r][c]), .right(rb[r][c+1]));
 	 end
       end
    endgenerate
 
-   abus_t abus[LAP_N];
-   bbus_t bbus[LAP_N];   
-   cbus_t cbus[LAP_N];
+   genvar col;
+   generate
+      for (col = 0; col < LAP_N; col = col+1) begin : se
+	 se se(.clk(clk), 
+	       .up(cb[LAP_N][col]), .pb(pb[col]),   .down(sb[col]));
+      end
+   endgenerate
 
    sa_inst_t finst;
-   assign finst = '{ 0,0,32'hAAAA,32'hBBBB,16'hCCCC,32'hDDDD,LAP_N-1};
+   pa_inst_t winst;
+   assign finst = '{ 4'h5,32'hAAAA,32'hBBBB,16'hCCCC,32'hDDDD,LAP_N-1};
    logic ifavail, ifrd;
    assign ifavail = 1'b1;
+   opcd_t saop;
+   logic wload;
    
    vinst_ctl vctl0 (.clk(clk), .reset(reset), 
 		  .inst(finst), .iavail(ifavail),
-		  .ird(ifrd),
-		  .abus(abus[0]), .bbus(bbus[0]), .cbus(cbus[0]));
+		  .ird(ifrd), .next(wload), .saop(saop), .oinst(winst),
+		  .ca(ca[0]), .ra(ra[0]));
 
-   always_ff @(posedge clk) begin
+   always_ff @(posedge clk) begin // stage address
       for (int i=0; i<LAP_N-1; i++) begin
-	 abus[i+1] <= abus[i]; // stage busses
-	 bbus[i+1] <= bbus[i]; // 
-	 cbus[i+1] <= cbus[i]; // FIX
+	 ra[i+1] <= ra[i]; 
+	 ca[i+1] <= ca[i]; 
       end
-//      abus[LAP_N-1:1] <= abus[LAP_N-2:0];
-//      bbus[LAP_N-1:1] <= bbus[LAP_N-2:0];
-//      cbus[LAP_N-1:1] <= cbus[LAP_N-2:0]; // fix
    end
      
-   
+  winst_ctl wctl0(.clk(clk), .reset(reset), 
+		  .inst(winst), .load(wload),
+		  .next(), .oinst(),
+		 .par(par[0]), .spaw(paw[0]));   
+
+   always_ff @(posedge clk) begin // stage address
+      for (int i=0; i<LAP_N-1; i++) begin
+	 par[i+1] <= par[i]; 
+	 paw[i+1] <= paw[i]; 
+      end
+   end
+
+
    reg [31:0] count_c;
    reg [31:0] count_f;
    
